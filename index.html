@@ -162,6 +162,23 @@
 
             // --- UI Helper Functions ---
             
+            // New helper function to convert simple Markdown to HTML
+            function markdownToHtml(markdown) {
+                // Replace **text** with <strong>text</strong>
+                let html = markdown.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+                // Replace ### heading with <h3>heading</h3> and so on
+                html = html.replace(/### (.*?)\n/g, '<h3>$1</h3>');
+                // Replace # heading with <h1>heading</h1> and so on
+                html = html.replace(/# (.*?)\n/g, '<h1>$1</h1>');
+                // Replace bullet points with <li> tags, but not if they are already in a list
+                html = html.replace(/^- (.*?)$/gm, '<li>$1</li>');
+                // Wrap list items in ul
+                if (html.includes('<li>')) {
+                    html = `<ul>${html}</ul>`;
+                }
+                return html;
+            }
+
             function addMessage(text, isUser, type = 'text') {
                 const messageDiv = document.createElement('div');
                 messageDiv.classList.add('flex', 'items-start', 'space-x-2');
@@ -176,10 +193,10 @@
                     messageContent.classList.add('message', 'user-message');
                     messageContent.innerText = text;
                 } else {
-                    // This is the main fix: using innerHTML instead of innerText
                     if (type === 'agenda') {
                         messageContent.classList.add('message', 'bot-agenda', 'text-gray-800', 'text-sm');
-                        messageContent.innerHTML = text;
+                        // Use the new Markdown to HTML converter
+                        messageContent.innerHTML = markdownToHtml(text);
                     } else if (type === 'summary') {
                         messageContent.classList.add('message', 'bot-summary', 'text-gray-800');
                         messageContent.innerHTML = `<strong>Summary:</strong> ${text}`;
@@ -192,7 +209,7 @@
                     }
                     else {
                         messageContent.classList.add('bot-message', 'text-gray-800');
-                        messageContent.innerHTML = text; // Fixed this line to use innerHTML
+                        messageContent.innerHTML = markdownToHtml(text);
                     }
                 }
                 
@@ -281,7 +298,7 @@
 
             // Renders the agenda to a nice HTML format
             function renderAgenda(agenda) {
-                let html = `<h3 class="text-lg font-bold">${agenda.title}</h3>`;
+                let html = `<h3>${agenda.title}</h3>`;
                 html += `<p class="text-sm text-gray-500 mb-2">Total Duration: ${agenda.duration} minutes</p>`;
                 html += `<ul>`;
                 agenda.items.forEach(item => {
@@ -350,7 +367,6 @@
                         return "Failed to generate agenda. The LLM encountered an error.";
                     }
                 } else if (toolName === 'summarize_text') {
-                    // This is the summarization logic
                     const summarizePrompt = `Please provide a concise summary of the following text:\n\n${args.text_to_summarize}`;
                     const summarizePayload = {
                         contents: [{ parts: [{ text: summarizePrompt }] }]
@@ -373,7 +389,6 @@
                         return "Failed to summarize the text. The LLM encountered an error.";
                     }
                 } else if (toolName === 'draft_email') {
-                    // This is the email drafting logic
                     const draftPrompt = `Draft a professional email with the following details:
 Subject: ${args.topic}
 Recipient: ${args.recipient || 'Team'}
@@ -403,7 +418,6 @@ Please format the response as a simple text email. Do not include any JSON.`;
                         return "Failed to draft the email. The LLM encountered an error.";
                     }
                 } else if (toolName === 'fix_text_tone') {
-                    // This is the new grammar and tone fixer logic
                     const fixPrompt = `Correct the grammar and rewrite the following text to have a ${args.desired_tone || 'professional'} tone: "${args.text_to_fix}".`;
                     const fixPayload = {
                         contents: [{ parts: [{ text: fixPrompt }] }]
