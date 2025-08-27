@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corporate Toolkit Chatbot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #e2e8f0; /* Softer background color */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .main-container {
+            background-color: rgba(255, 255, 255, 0.9); /* Glassmorphism effect */
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .message.bot-agenda {
+            background-color: #f0f9ff; /* light blue */
+            border-left: 4px solid #3b82f6; /* blue-500 */
+            padding: 1.5rem;
+            border-radius: 1rem;
+            border-bottom-left-radius: 0;
+        }
+        .agenda-item {
+            margin-bottom: 0.5rem;
+        }
+        .message.bot-summary {
+            background-color: #f0fdf4; /* light green */
+            border-left: 4px solid #22c55e; /* green-500 */
+            padding: 1rem;
+            font-size: 0.875rem; /* text-sm */
+            border-radius: 1rem;
+            border-bottom-left-radius: 0;
+        }
+        .message.bot-email-draft {
+            background-color: #fefce8; /* light yellow */
+            border-left: 4px solid #f59e0b; /* amber-500 */
+            padding: 1rem;
+            font-size: 0.875rem; /* text-sm */
+            white-space: pre-wrap;
+            border-radius: 1rem;
+            border-bottom-left-radius: 0;
+        }
+        .message.bot-fixer {
+            background-color: #f3e8ff; /* light purple */
+            border-left: 4px solid #8b5cf6; /* purple-500 */
+            padding: 1rem;
+            font-size: 0.875rem; /* text-sm */
+            white-space: pre-wrap;
+            border-radius: 1rem;
+            border-bottom-left-radius: 0;
+        }
+        .message.user-message {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+            border-radius: 1rem;
+            border-bottom-right-radius: 0;
+        }
+        .bot-message {
+            background-color: #e5e7eb; /* gray-200 */
+            border-radius: 1rem;
+            border-bottom-left-radius: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center p-4 min-h-screen">
+
+    <!-- Main Chat Container -->
+    <div class="main-container rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col h-[80vh] sm:h-[90vh]">
+
+        <!-- Chat Header -->
+        <div class="bg-blue-600 text-white p-4 flex items-center justify-between shadow-md rounded-t-2xl">
+            <h1 class="text-xl font-bold">Corporate Toolkit Chatbot</h1>
+            <span class="text-sm font-light">Powered by TORQ</span>
+        </div>
+
+        <!-- Chat Messages Display -->
+        <div id="messages" class="flex-1 p-4 overflow-y-auto space-y-4">
+            <!-- Initial bot message -->
+            <div class="flex items-start">
+                <div class="bot-message text-gray-800 p-3 max-w-[80%] shadow">
+                    Hello! I'm a corporate toolkit chatbot. I can generate a meeting agenda, summarize text, draft emails, or fix grammar and tone.
+                    <br><br>
+                    To generate an agenda, say: "Generate a 45-minute agenda for a project kickoff meeting."
+                    <br><br>
+                    To summarize, say: "Summarize this: [paste your text here]".
+                    <br><br>
+                    To draft an email, say: "Draft an email to the team about the Q3 report, highlighting the sales figures."
+                    <br><br>
+                    To fix grammar and tone, say: "Fix this text to be more professional: [paste your text here]".
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Input Form -->
+        <form id="chatForm" class="p-4 bg-white border-t border-gray-200">
+            <div class="flex items-center space-x-2">
+                <input type="text" id="userInput" placeholder="Type your message..." autocomplete="off"
+                       class="flex-1 p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200">
+                <button type="submit"
+                        class="bg-blue-600 text-white p-3 rounded-full hover:bg-blue-700 transition duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M12 5l7 7-7 7" />
+                    </svg>
+                </button>
+            </div>
+        </form>
+
+    </div>
+
+    <!-- JavaScript for Chatbot Logic and UI -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatForm = document.getElementById('chatForm');
+            const userInput = document.getElementById('userInput');
+            const messagesContainer = document.getElementById('messages');
+            
+            const MAX_RETRIES = 5;
+
+           
+            
+            function addMessage(text, isUser, type = 'text') {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('flex', 'items-start', 'space-x-2');
+                if (isUser) {
+                    messageDiv.classList.add('justify-end');
+                }
+
+                const messageContent = document.createElement('div');
+                messageContent.classList.add('p-3', 'max-w-[80%]', 'shadow');
+                
+                if (isUser) {
+                    messageContent.classList.add('message', 'user-message');
+                    messageContent.innerText = text;
+                } else {
+                    if (type === 'agenda') {
+                        messageContent.classList.add('message', 'bot-agenda', 'text-gray-800', 'text-sm');
+                        messageContent.innerHTML = text;
+                    } else if (type === 'summary') {
+                        messageContent.classList.add('message', 'bot-summary', 'text-gray-800');
+                        messageContent.innerHTML = `<strong>Summary:</strong> ${text}`;
+                    } else if (type === 'email') {
+                        messageContent.classList.add('message', 'bot-email-draft', 'text-gray-800');
+                        messageContent.innerHTML = text.replace(/\n/g, '<br>'); // Preserve newlines
+                    } else if (type === 'fixer') {
+                        messageContent.classList.add('message', 'bot-fixer', 'text-gray-800');
+                        messageContent.innerHTML = `<strong>Corrected Text:</strong> ${text.replace(/\n/g, '<br>')}`;
+                    }
+                    else {
+                        messageContent.classList.add('bot-message', 'text-gray-800');
+                        messageContent.innerText = text;
+                    }
+                }
+                
+                messageDiv.appendChild(messageContent);
+                messagesContainer.appendChild(messageDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+
+            function addLoadingIndicator() {
+                const loadingDiv = document.createElement('div');
+                loadingDiv.id = 'loading-indicator';
+                loadingDiv.classList.add('flex', 'items-start');
+                loadingDiv.innerHTML = `
+                    <div class="bot-message p-3 shadow">
+                        <div class="flex space-x-1">
+                            <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: -0.32s;"></div>
+                            <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style="animation-delay: -0.16s;"></div>
+                            <div class="w-2 h-2 bg-gray-500 rounded-full animate-bounce"></div>
+                        </div>
+                    </div>
+                `;
+                messagesContainer.appendChild(loadingDiv);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }
+
+            function removeLoadingIndicator() {
+                const loadingIndicator = document.getElementById('loading-indicator');
+                if (loadingIndicator) {
+                    loadingIndicator.remove();
+                }
+            }
+
+            // --- Agent Tools and Logic ---
+            const toolDeclarations = [
+                {
+                    "name": "generate_agenda",
+                    "description": "Generates a professional meeting agenda based on a topic and duration.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "topic": { "type": "string", "description": "The topic of the meeting." },
+                            "duration": { "type": "number", "description": "The duration of the meeting in minutes." }
+                        },
+                        "required": ["topic", "duration"]
+                    }
+                },
+                {
+                    "name": "summarize_text",
+                    "description": "Summarizes a block of text provided by the user.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "text_to_summarize": { "type": "string", "description": "The text content to be summarized." }
+                        },
+                        "required": ["text_to_summarize"]
+                    }
+                },
+                {
+                    "name": "draft_email",
+                    "description": "Drafts a professional email, announcement, or message based on a topic and key points.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "topic": { "type": "string", "description": "The main topic or subject of the email." },
+                            "key_points": { "type": "string", "description": "The key information or points to include in the message." },
+                            "recipient": { "type": "string", "description": "The intended recipient of the message." },
+                            "tone": { "type": "string", "description": "The desired tone for the message, e.g., 'formal', 'casual', 'urgent'." }
+                        },
+                        "required": ["topic", "key_points"]
+                    }
+                },
+                {
+                    "name": "fix_text_tone",
+                    "description": "Rewrites a given text to be more grammatically correct and professional.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "text_to_fix": { "type": "string", "description": "The text content to be fixed." },
+                            "desired_tone": { "type": "string", "description": "The desired tone for the corrected text, e.g., 'professional', 'formal', 'casual'." }
+                        },
+                        "required": ["text_to_fix"]
+                    }
+                }
+            ];
+
+            function renderAgenda(agenda) {
+                let html = `<h3 class="text-lg font-bold">${agenda.title}</h3>`;
+                html += `<p class="text-sm text-gray-500 mb-2">Total Duration: ${agenda.duration} minutes</p>`;
+                html += `<ul>`;
+                agenda.items.forEach(item => {
+                    html += `<li class="agenda-item">
+                                <div class="font-semibold text-gray-800 flex justify-between">
+                                    <span>${item.topic}</span>
+                                    <span class="text-sm font-medium text-blue-600">${item.time} min</span>
+                                </div>
+                                <p class="text-gray-600 text-xs mt-1">${item.description}</p>
+                             </li>`;
+                });
+                html += `</ul>`;
+                return html;
+            }
+
+            async function executeTool(toolCall) {
+                const toolName = toolCall.name;
+                const args = toolCall.args;
+                
+                if (toolName === 'generate_agenda') {
+                    const agendaPrompt = `Generate a professional and comprehensive meeting agenda for the topic "${args.topic}". The total meeting duration is ${args.duration} minutes. Provide a detailed, time-boxed agenda as a JSON object with 'title', 'duration', and an array of 'items'. Each item should have a 'topic', 'time' (in minutes), and a 'description'. Ensure the total time of the items adds up to the total duration.`;
+
+                    const agendaPayload = {
+                        contents: [{ parts: [{ text: agendaPrompt }] }],
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "OBJECT",
+                                properties: {
+                                    "title": { "type": "STRING" },
+                                    "duration": { "type": "NUMBER" },
+                                    "items": {
+                                        "type": "ARRAY",
+                                        "items": {
+                                            "type": "OBJECT",
+                                            "properties": {
+                                                "topic": { "type": "STRING" },
+                                                "time": { "type": "NUMBER" },
+                                                "description": { "type": "STRING" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    const apiKey = typeof window.__GAPI_KEY__ !== 'undefined' ? window.__GAPI_KEY__ : "AIzaSyBYh-DT65_UQQQMi0rbpmY97oD1jLPMM9k";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(agendaPayload)
+                        });
+                        
+                        const result = await response.json();
+                        const jsonString = result.candidates[0].content.parts[0].text;
+                        const agenda = JSON.parse(jsonString);
+                        return renderAgenda(agenda);
+
+                    } catch (error) {
+                        console.error('Error generating agenda:', error);
+                        return "Failed to generate agenda. The LLM encountered an error.";
+                    }
+                } else if (toolName === 'summarize_text') {
+                    // This is the summarization logic
+                    const summarizePrompt = `Please provide a concise summary of the following text:\n\n${args.text_to_summarize}`;
+                    const summarizePayload = {
+                        contents: [{ parts: [{ text: summarizePrompt }] }]
+                    };
+                    
+                    const apiKey = typeof window.__GAPI_KEY__ !== 'undefined' ? window.__GAPI_KEY__ : "AIzaSyBYh-DT65_UQQQMi0rbpmY97oD1jLPMM9k";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(summarizePayload)
+                        });
+                        
+                        const result = await response.json();
+                        return result.candidates[0].content.parts[0].text;
+                    } catch (error) {
+                        console.error('Error summarizing text:', error);
+                        return "Failed to summarize the text. The LLM encountered an error.";
+                    }
+                } else if (toolName === 'draft_email') {
+                    // This is the email drafting logic
+                    const draftPrompt = `Draft a professional email with the following details:
+Subject: ${args.topic}
+Recipient: ${args.recipient || 'Team'}
+Key Points: ${args.key_points}
+Tone: ${args.tone || 'professional'}
+    
+Please format the response as a simple text email. Do not include any JSON.`;
+
+                    const draftPayload = {
+                        contents: [{ parts: [{ text: draftPrompt }] }]
+                    };
+
+                    const apiKey = typeof window.__GAPI_KEY__ !== 'undefined' ? window.__GAPI_KEY__ : "AIzaSyBYh-DT65_UQQQMi0rbpmY97oD1jLPMM9k";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(draftPayload)
+                        });
+                        
+                        const result = await response.json();
+                        return result.candidates[0].content.parts[0].text;
+                    } catch (error) {
+                        console.error('Error drafting email:', error);
+                        return "Failed to draft the email. The LLM encountered an error.";
+                    }
+                } else if (toolName === 'fix_text_tone') {
+                    // This is the new grammar and tone fixer logic
+                    const fixPrompt = `Correct the grammar and rewrite the following text to have a ${args.desired_tone || 'professional'} tone: "${args.text_to_fix}".`;
+                    const fixPayload = {
+                        contents: [{ parts: [{ text: fixPrompt }] }]
+                    };
+
+                    const apiKey = typeof window.__GAPI_KEY__ !== 'undefined' ? window.__GAPI_KEY__ : "AIzaSyBYh-DT65_UQQQMi0rbpmY97oD1jLPMM9k";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(fixPayload)
+                        });
+                        
+                        const result = await response.json();
+                        return result.candidates[0].content.parts[0].text;
+                    } catch (error) {
+                        console.error('Error fixing text:', error);
+                        return "Failed to fix the text. The LLM encountered an error.";
+                    }
+                }
+                return `Error: Unknown tool "${toolName}".`;
+            }
+
+            async function processMessage(prompt) {
+                let responseText = '';
+                let responseType = 'text';
+                const messages = [{
+                    role: "user",
+                    parts: [{ text: prompt }]
+                }];
+
+                try {
+                    const payload = {
+                        contents: messages,
+                        tools: {
+                            functionDeclarations: toolDeclarations
+                        }
+                    };
+                    const apiKey = typeof window.__GAPI_KEY__ !== 'undefined' ? window.__GAPI_KEY__ : "AIzaSyBYh-DT65_UQQQMi0rbpmY97oD1jLPMM9k";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const result = await response.json();
+                    const candidate = result.candidates[0];
+                    
+                    const toolCall = candidate.content?.parts?.find(part => part.functionCall);
+
+                    if (toolCall) {
+                        const toolOutput = await executeTool(toolCall.functionCall);
+                        responseType = (toolCall.functionCall.name === 'generate_agenda') ? 'agenda' : 
+                                       (toolCall.functionCall.name === 'summarize_text' ? 'summary' : 
+                                       (toolCall.functionCall.name === 'draft_email' ? 'email' : 'fixer'));
+
+                        const toolResponseMessages = [
+                            ...messages,
+                            {
+                                role: "model",
+                                parts: [{ functionCall: toolCall.functionCall }]
+                            },
+                            {
+                                role: "user",
+                                parts: [{ functionResponse: { name: toolCall.functionCall.name, response: { content: toolOutput } } }]
+                            }
+                        ];
+
+                        const toolResponsePayload = {
+                            contents: toolResponseMessages,
+                            tools: {
+                                functionDeclarations: toolDeclarations
+                            }
+                        };
+
+                        const finalResponse = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(toolResponsePayload)
+                        });
+                        
+                        const finalResult = await finalResponse.json();
+                        responseText = finalResult.candidates[0].content.parts[0].text;
+
+                    } else {
+                        responseText = candidate.content?.parts[0]?.text || "Sorry, I couldn't generate a response.";
+                    }
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    responseText = "Sorry, I'm having trouble right now. Please try again.";
+                }
+                
+                return { responseText, responseType };
+            }
+
+    
+            chatForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const userMessage = userInput.value.trim();
+
+                if (userMessage) {
+                    addMessage(userMessage, true);
+                    userInput.value = '';
+                    addLoadingIndicator();
+                    
+                    const { responseText, responseType } = await processMessage(userMessage);
+                    
+                    removeLoadingIndicator();
+                    addMessage(responseText, false, responseType);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
